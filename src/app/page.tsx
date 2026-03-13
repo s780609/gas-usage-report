@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const UNITS = ["15-1", "15-2", "15-3", "15-4", "15-5", "15-6"] as const;
 const FLOORS = Array.from({ length: 16 }, (_, i) => 17 - i); // 17F down to 2F
@@ -13,8 +13,32 @@ export default function Home() {
     const today = new Date();
     return today.toISOString().split("T")[0];
   });
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   const cellKey = (floor: number, unit: string) => `${floor}_${unit}`;
+
+  // Load readings when date changes
+  const loadReadings = useCallback(async (d: string) => {
+    setLoading(true);
+    setMessage("");
+    try {
+      const res = await fetch(`/api/readings?date=${d}`);
+      if (res.ok) {
+        const data = await res.json();
+        setReadings(data);
+      }
+    } catch {
+      setMessage("讀取失敗");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReadings(date);
+  }, [date, loadReadings]);
 
   const handleChange = (floor: number, unit: string, value: string) => {
     // Only allow up to 4 digits
@@ -23,6 +47,28 @@ export default function Home() {
       ...prev,
       [cellKey(floor, unit)]: value,
     }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/readings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, records: readings }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessage(`儲存成功！共 ${data.count} 筆`);
+      } else {
+        setMessage("儲存失敗");
+      }
+    } catch {
+      setMessage("儲存失敗");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filledCount = Object.values(readings).filter((v) => v !== "").length;
@@ -51,6 +97,13 @@ export default function Home() {
               onChange={(e) => setDate(e.target.value)}
               className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <button
+              onClick={handleSave}
+              disabled={saving || loading}
+              className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {saving ? "儲存中..." : "儲存"}
+            </button>
           </div>
         </div>
 
@@ -105,10 +158,15 @@ export default function Home() {
           </table>
         </div>
 
-        {/* Footer hint */}
-        <p className="text-xs text-gray-400 mt-4 text-center">
-          目前為前端展示版本，資料庫功能將於連接 Neon DB 後啟用
-        </p>
+        {/* Status */}
+        {message && (
+          <p className={`text-sm mt-4 text-center font-medium ${message.includes("成功") ? "text-green-600" : "text-red-500"}`}>
+            {message}
+          </p>
+        )}
+        {loading && (
+          <p className="text-sm mt-4 text-center text-gray-400">載入中...</p>
+        )}
       </div>
     </div>
   );
