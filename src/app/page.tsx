@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 
 const UNITS = ["15-1", "15-2", "15-3", "15-4", "15-5", "15-6"] as const;
 const FLOORS = Array.from({ length: 16 }, (_, i) => 17 - i); // 17F down to 2F
@@ -242,6 +243,12 @@ export default function Home() {
             >
               {saving ? "儲存中..." : "儲存"}
             </button>
+            <Link
+              href="/usage"
+              className="border border-amber-400 text-amber-700 px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-50 transition-colors text-center"
+            >
+              📊 用量計算
+            </Link>
           </div>
         </div>
 
